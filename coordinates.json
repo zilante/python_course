@@ -1,0 +1,23 @@
+{
+  "background": [0, 0],
+  
+  "purchases_label": [1300, 340],
+  
+  "click_button": [630, 540],
+  
+  "upgrade_suggestions": [510, 240],
+  
+  "score_count_label": [590, 90],
+  
+  "helicopter_button": [20, 120],
+  
+  "plane_button": [20, 220],
+  
+  "simple_rocket_button": [20, 330],
+  
+  "interplanetary_rocket_button": [20, 440],
+  
+  "interstellar_rocket_button": [20, 550],
+  
+  "intergalactic_rocket_button": [20, 660]
+}
