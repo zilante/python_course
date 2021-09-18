@@ -1,172 +1,261 @@
 import telebot
-import sqlite3
+
+import config
+import db_operations
 
 
-def get_query_results(query):
-    connection = sqlite3.connect('database.sqlite')
-    cursor = connection.cursor()
-    cursor.execute(query)
-    results = cursor.fetchall()
-    connection.close()
-    return results
+def get_price_months(message, real_bot):
+    """
+    Function for extracting two numbers from user's message:
+    maximal price and month count
+    """
+    user_id = message.from_user.id
 
+    message_data = message.text.lower().split()
+    if len(message_data) != 2:
+        real_bot.send_message(
+            user_id, "Укажите цену и время"
+                     " в месяцах, прошедшее со дня покупки, через пробел"
+        )
+        return None
 
-def execute_query(query):
-    connection = sqlite3.connect('database.sqlite')
-    cursor = connection.cursor()
-    cursor.executescript(query)
-    connection.close()
+    elif not (message_data[0].isdigit() and message_data[1].isdigit()):
+        real_bot.send_message(
+            user_id, "Макисмальная цена и время в месяцах должны"
+                     " быть указаны в виде неотрицательных чисел"
+        )
+        return None
 
-
-def get_state(user_id):
-    user_state = get_query_results("SELECT user_state FROM users WHERE user_id = {}".format(user_id))
-    if len(user_state) != 0:
-        return user_state[0][0]
-    else:
-        return user_state
-
-
-def set_state(user_id, state):
-    execute_query("UPDATE users SET user_state = '{}' WHERE user_id = {}".format(state, user_id))
-
-
-def set_desired_model(user_id, model):
-    execute_query("UPDATE users SET desired_model = '{}' WHERE user_id = {}".format(model, user_id))
+    return (int(message_data[0]), int(message_data[1]),)
 
 
 class Bot:
-    real_bot = telebot.TeleBot('775986826:AAGHPEOdNI9_bfcIDNG4TQE3tBMDhoIs-FU')
+    real_bot = telebot.TeleBot(config.telegram_token)
+
+    @real_bot.message_handler(commands=['help'])
+    def help(message):
+        Bot.real_bot.send_message(
+            message.from_user.id,
+            "Доступны следующие команды:\n"
+            "- /buy:\n"
+            "  Для совершения покупок. Покупать можно"
+            " товары 4 типов: pc, tablet, laptop, smartphone.\n"
+            "- /sell:\n"
+            "  Для продажи товаров. Продавать тоже можно"
+            " только товары перечисленных выше типов.\n"
+            "- /get_balance:\n"
+            "  Для получения текущего баланса.\n"
+            "- /help:\n"
+            "  Для получения этой инструкции."
+        )
 
     @real_bot.message_handler(commands=['start'])
     def start(message):
-        Bot.real_bot.send_message(message.from_user.id, "Здравствуйте, это бот онлайн-магазина электронной техники")
-        user_count = get_query_results("SELECT COUNT(user_id) FROM users WHERE user_id = {}"
-                                       .format(message.from_user.id))[0][0]
-        if user_count == 0:
-            execute_query("INSERT INTO users values({}, 'operation', 'type', 'model', 1000)"
-                          .format(message.from_user.id))
+        user_id = message.from_user.id
+
+        Bot.real_bot.send_message(user_id,
+            "Здравствуйте, это бот онлайн-магазина электронной техники."
+            " Для получения инструкции введите команду /help."
+        )
+
+        user = db_operations.get_user(user_id)
+        if user is None:
+            db_operations.create_user(user_id)
         else:
-            set_state(message.from_user.id, 'operation')
+            db_operations.update_user(
+                user_id, ('user_state',), ("'select_operation'",)
+            )
 
-    @real_bot.message_handler(commands=['reset'])
-    def reset(message):
-        set_state(message.from_user.id, 'operation')
+    @real_bot.message_handler(commands=['buy'])
+    def buy(message):
+        user_id = message.from_user.id
 
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'operation')
-    def operation(message):
-        if "купить" in message.text.lower() or "куплю" in message.text.lower():
-            Bot.real_bot.send_message(message.from_user.id, "Хорошо, выберите вид техники")
-            set_state(message.from_user.id, 'buying_select_type')
-        elif "продать" in message.text.lower() or "продам" in message.text.lower():
-            Bot.real_bot.send_message(message.from_user.id, "Хоршошо, выберите вид техники")
-            set_state(message.from_user.id, 'selling_select_type')
-        elif message.text == "/help":
-            Bot.real_bot.send_message(message.from_user.id, "напишите 'купить' или 'продать'")
-        else:
-            Bot.real_bot.send_message(message.from_user.id,
-                             "Пожалуйста, уточните, что вы хотите. Воспользуйтесь командой /help, чтобы узнать команды")
+        db_operations.update_user(
+            user_id, ('user_state',), ("'select_buying_type'",)
+        )
+        Bot.real_bot.send_message(user_id, "Выберите вид техники")
 
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'buying_select_type')
-    def buying_select_type(message):
-        if message.text.lower() in ['pc', 'tablet', 'laptop', 'smartphone']:
-            Bot.real_bot.send_message(message.from_user.id, "Выберите модель")
-            execute_query(
-                "UPDATE users SET desired_type = '{}' WHERE user_id = {}".format(message.text, message.from_user.id))
-            set_state(message.from_user.id, 'buying_select_model')
-        else:
-            Bot.real_bot.send_message(message.from_user.id, "Такой вид товаров не продается!")
-            set_state(message.from_user.id, 'operation')
+    @real_bot.message_handler(commands=['sell'])
+    def sell(message):
+        user_id = message.from_user.id
 
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == "buying_select_model")
-    def buying_select_model(message):
-        type = get_query_results("SELECT desired_type FROM users WHERE user_id = {}".format(message.from_user.id))[0][0]
-        model_count = get_query_results("SELECT COUNT(model) FROM {} WHERE model = '{}'"
-                                        .format(type, message.text))[0][0]
-        if model_count == 0:
-            Bot.real_bot.send_message(message.from_user.id, "Таких моделей не осталось")
+        db_operations.update_user(
+            user_id, ('user_state',), ("'select_selling_type'",)
+        )
+        Bot.real_bot.send_message(user_id, "Выберите вид техники")
+
+    @real_bot.message_handler(commands=['get_balance'])
+    def get_balance(message):
+        user_id = message.from_user.id
+
+        user = db_operations.get_user(user_id)
+        Bot.real_bot.send_message(
+            user_id, "Ваш текущий баланс: {}".format(user['money'])
+        )
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+        message.from_user.id)['user_state'] == 'select_operation')
+    def select_operation(message):
+        user_id = message.from_user.id
+
+        Bot.real_bot.send_message(
+            user_id, "Для получения инструкции напишите /help"
+        )
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+             message.from_user.id)['user_state'] == 'select_buying_type')
+    def select_buying_type(message):
+        message_text = message.text.lower()
+        user_id = message.from_user.id
+
+        if message_text in ['pc', 'tablet', 'laptop', 'smartphone']:
+            db_operations.update_user(
+                user_id, ('desired_type', 'user_state',),
+                ("'{}'".format(message_text), "'select_buying_model'",)
+            )
+            Bot.real_bot.send_message(user_id, "Выберите модель")
         else:
             Bot.real_bot.send_message(
-                message.from_user.id,
-                "Уточните макс. цену и макс. время в месяцах, прошедшее со дня покупки, через пробел")
-            execute_query(
-                "UPDATE users SET desired_model = '{}' WHERE user_id = {}".format(message.text, message.from_user.id))
-            set_state(message.from_user.id, 'buying_max_price_months')
+                user_id, "Такой вид товаров не продается!"
+            )
 
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'buying_max_price_months')
-    def buying_max_price_months(message):
-        if len(message.text.split()) == 2:
-            price = message.text.split()[0]
-            months = message.text.split()[1]
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+             message.from_user.id)['user_state'] == "select_buying_model")
+    def select_buying_model(message):
+        message_text = message.text.lower()
+        user_id = message.from_user.id
+
+        desired_type = db_operations.get_user(user_id)['desired_type']
+        device = db_operations.get_device_with_condition(
+            "device_type = '{}' AND model = '{}'"
+            .format(desired_type, message_text)
+        )
+
+        if device is None:
+            Bot.real_bot.send_message(user_id, "Таких моделей нет в наличии")
         else:
-            Bot.real_bot.send_message(message.from_user.id, "Введите корректную информацию")
+            db_operations.update_user(
+                user_id, ('desired_model', 'user_state',),
+                ("'{}'".format(message_text),
+                 "'select_buying_max_price_months'",)
+            )
+            Bot.real_bot.send_message(
+                user_id, "Укажите максимально допустимые цену и время"
+                         " в месяцах, прошедшее со дня покупки, через пробел"
+            )
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+        message.from_user.id)['user_state'] ==
+                             'select_buying_max_price_months')
+    def select_buying_max_price_months(message):
+        user_id = message.from_user.id
+
+        price_months = get_price_months(message, Bot.real_bot)
+        if price_months is None:
             return
-        type = get_query_results("SELECT desired_type FROM users WHERE user_id = {}".format(message.from_user.id))[0][0]
-        model = get_query_results("SELECT desired_model FROM users WHERE user_id = {}"
-                                  .format(message.from_user.id))[0][0]
-        model_count = get_query_results(
-            "SELECT COUNT(model) FROM {} WHERE model = '{}' AND price <= {} AND months <= {}"
-                                   .format(type, model, int(price), int(months)))[0][0]
+        (price, months) = price_months
 
-        if model_count == 0:
-            Bot.real_bot.send_message(message.from_user.id, "По вашему запросу ничего не найдено")
-        else:
-            money = int(get_query_results("SELECT money FROM users WHERE user_id = {}"
-                                          .format(message.from_user.id))[0][0])
-            product = get_query_results(
-                "SELECT id, seller_id, price FROM {} WHERE model = '{}' AND price <= {} AND months <= {}".format(type,
-                                                                                                        model,
-                                                                                                        int(price),
-                                                                                                        int(months)))
-            id = product[0][0]
-            seller_id = product[0][1]
-            price = product[0][2]
-            money -= price
-            if money < 0:
-                Bot.real_bot.send_message(message.from_user.id, "У вас недостаточно средств")
-            else:
-                Bot.real_bot.send_message(message.from_user.id, "Покупка успешно совершена")
-                execute_query("UPDATE users SET money = {} WHERE user_id = {}".format(money, message.from_user.id))
-                money = int(get_query_results("SELECT money FROM users WHERE user_id = {}".format(seller_id))[0][0])
-                money += price
-                execute_query("UPDATE users SET money = {} WHERE user_id = {}".format(money, seller_id))
-                execute_query("DELETE FROM {} WHERE id = {}".format(type, id))
-                set_state(message.from_user.id, 'operation')
-
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'selling_select_type')
-    def selling_select_type(message):
-        if message.text.lower() in ['pc', 'tablet', 'laptop', 'smartphone']:
-            Bot.real_bot.send_message(message.from_user.id, "Уточните модель")
-            execute_query(
-                "UPDATE users SET desired_type = '{}' WHERE user_id = {}".format(message.text, message.from_user.id))
-            set_state(message.from_user.id, 'selling_select_model')
-        else:
-            Bot.real_bot.send_message(message.from_user.id, "Такой вид товаров не продается!")
-            set_state(message.from_user.id, 'operation')
-
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'selling_select_model')
-    def selling_select_model(message):
-        execute_query("UPDATE users SET desired_model = '{}'".format(message.text))
-        Bot.real_bot.send_message(message.from_user.id, "Укажите цену и время в месяцах, прошедшее со дня покупки")
-        set_state(message.from_user.id, 'selling_set_price_months')
-
-    @real_bot.message_handler(func=lambda message: get_state(message.from_user.id) == 'selling_set_price_months')
-    def selling_set_price_months(message):
-        if len(message.text.split()) == 2:
-            price = message.text.split()[0]
-            months = message.text.split()[1]
-        else:
-            Bot.real_bot.send_message(message.from_user.id, "Введите корректную информацию!")
+        user = db_operations.get_user(user_id)
+        buyer_money = user['money']
+        if buyer_money < price:
+            Bot.real_bot.send_message(user_id,
+                "Введите цену, не большую чем ваш баланс."
+                " Ваш текущий баланс: {}".format(buyer_money)
+            )
             return
-        type = get_query_results("SELECT desired_type FROM users WHERE user_id = {}".format(message.from_user.id))[0][0]
-        model = get_query_results("SELECT desired_model FROM users WHERE user_id = {}"
-                                  .format(message.from_user.id))[0][0]
-        id = get_query_results("SELECT COUNT(id) FROM {}".format(type))[0][0]
-        execute_query(
-            "INSERT INTO {} values ({}, '{}', {}, {}, {})".format(type, id + 1, model, int(price),
-                                                                  int(months),
-                                                                  message.from_user.id))
-        Bot.real_bot.send_message(message.from_user.id, "Вы успешно продали продукт!")
-        set_state(message.from_user.id, 'operation')
+
+        desired_type = user['desired_type']
+        desired_model = user['desired_model']
+
+        device = db_operations.get_device_with_condition(
+            "device_type = '{}' AND model = '{}' AND"
+            " price <= {} AND months <= {}"
+            .format(desired_type, desired_model, price, months)
+        )
+
+        if device is None:
+            Bot.real_bot.send_message(
+                user_id, "По вашему запросу ничего не найдено"
+            )
+        else:
+            device_id = device['id']
+            seller_id = device['seller_id']
+            price = device['price']
+
+            buyer_money -= price
+            db_operations.update_user(
+                user_id, ('money', 'user_state',),
+                (str(buyer_money), "'select_operation'",)
+            )
+
+            seller_money = db_operations.get_user(seller_id)['money']
+            db_operations.update_user(
+                seller_id, ('money',), (str(seller_money + price),)
+            )
+
+            db_operations.delete_device(device_id)
+
+            Bot.real_bot.send_message(user_id, "Покупка успешно совершена")
+            Bot.real_bot.send_message(
+                seller_id,
+                "Ваш товар был куплен: {}, {}"
+                .format(desired_type, desired_model)
+            )
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+             message.from_user.id)['user_state'] == 'select_selling_type')
+    def select_selling_type(message):
+        message_text = message.text.lower()
+        user_id = message.from_user.id
+
+        if message_text in ['pc', 'tablet', 'laptop', 'smartphone']:
+            db_operations.update_user(
+                user_id, ('desired_type', 'user_state',),
+                ("'{}'".format(message_text), "'select_selling_model'",)
+            )
+            Bot.real_bot.send_message(user_id, "Уточните модель")
+        else:
+            Bot.real_bot.send_message(
+                user_id, "Такой вид товаров не продается!"
+            )
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+             message.from_user.id)['user_state'] == 'select_selling_model')
+    def select_selling_model(message):
+        message_text = message.text.lower()
+        user_id = message.from_user.id
+
+        db_operations.update_user(
+            user_id, ('desired_model', 'user_state',),
+            ("'{}'".format(message_text), "'select_selling_price_months'",)
+        )
+        Bot.real_bot.send_message(
+            user_id, "Укажите цену и время в месяцах,"
+                        " прошедшее со дня покупки"
+        )
+
+
+    @real_bot.message_handler(func=lambda message: db_operations.get_user(
+        message.from_user.id)['user_state'] == 'select_selling_price_months')
+    def select_selling_price_months(message):
+        user_id = message.from_user.id
+
+        price_months = get_price_months(message, Bot.real_bot)
+        if price_months is None:
+            return
+        (price, months) = price_months
+
+        user = db_operations.get_user(user_id)
+        desired_type = user['desired_type']
+        desired_model = user['desired_model']
+
+        db_operations.insert_device(
+            (desired_type, desired_model, price, months, user_id,)
+        )
+        db_operations.update_user(
+            user_id, ('user_state',), ("'select_operation'",)
+        )
+        Bot.real_bot.send_message(user_id, "Вы успешно продали товар!")
 
     def execute(self):
         self.real_bot.polling(none_stop=True, timeout=123, interval=0)
