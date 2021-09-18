@@ -278,7 +278,9 @@ class Bot:
         db_operations.update_user(
             user_id, ('user_state',), ("'select_operation'",)
         )
-        Bot.real_bot.send_message(user_id, "Вы успешно продали товар!")
+        Bot.real_bot.send_message(
+            user_id, "Вы успешно выставили товар на продажу!"
+        )
 
     def execute(self):
         self.real_bot.polling(none_stop=True, timeout=123, interval=0)
