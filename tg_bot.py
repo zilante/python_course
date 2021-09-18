@@ -29,6 +29,21 @@ def get_price_months(message, real_bot):
     return (int(message_data[0]), int(message_data[1]),)
 
 
+def is_bot_started(message):
+    return db_operations.get_user(message.from_user.id) is not None
+
+
+def get_user_state_checker(required_state):
+    def is_required_state(message):
+        user = db_operations.get_user(message.from_user.id)
+        if user is None:
+            return False
+
+        return user['user_state'] == required_state
+
+    return is_required_state
+
+
 class Bot:
     real_bot = telebot.TeleBot(config.telegram_token)
 
@@ -36,7 +51,8 @@ class Bot:
     def help(message):
         Bot.real_bot.send_message(
             message.from_user.id,
-            "Доступны следующие команды:\n"
+            "Перед началом взаимодействия с ботом введите команду /start.\n"
+            "У бота доступны следующие команды:\n"
             "- /buy:\n"
             "  Для совершения покупок. Покупать можно"
             " товары 4 типов: pc, tablet, laptop, smartphone.\n"
@@ -66,7 +82,7 @@ class Bot:
                 user_id, ('user_state',), ("'select_operation'",)
             )
 
-    @real_bot.message_handler(commands=['buy'])
+    @real_bot.message_handler(commands=['buy'], func=is_bot_started)
     def buy(message):
         user_id = message.from_user.id
 
@@ -75,7 +91,7 @@ class Bot:
         )
         Bot.real_bot.send_message(user_id, "Выберите вид техники")
 
-    @real_bot.message_handler(commands=['sell'])
+    @real_bot.message_handler(commands=['sell'], func=is_bot_started)
     def sell(message):
         user_id = message.from_user.id
 
@@ -84,7 +100,7 @@ class Bot:
         )
         Bot.real_bot.send_message(user_id, "Выберите вид техники")
 
-    @real_bot.message_handler(commands=['get_balance'])
+    @real_bot.message_handler(commands=['get_balance'], func=is_bot_started)
     def get_balance(message):
         user_id = message.from_user.id
 
@@ -93,17 +109,20 @@ class Bot:
             user_id, "Ваш текущий баланс: {}".format(user['money'])
         )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-        message.from_user.id)['user_state'] == 'select_operation')
-    def select_operation(message):
+    @real_bot.message_handler(func=lambda message:
+          get_user_state_checker('select_operation')(message) or
+          not is_bot_started(message)
+    )
+    def send_help(message):
         user_id = message.from_user.id
 
         Bot.real_bot.send_message(
             user_id, "Для получения инструкции напишите /help"
         )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-             message.from_user.id)['user_state'] == 'select_buying_type')
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_buying_type')
+    )
     def select_buying_type(message):
         message_text = message.text.lower()
         user_id = message.from_user.id
@@ -119,8 +138,9 @@ class Bot:
                 user_id, "Такой вид товаров не продается!"
             )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-             message.from_user.id)['user_state'] == "select_buying_model")
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_buying_model')
+    )
     def select_buying_model(message):
         message_text = message.text.lower()
         user_id = message.from_user.id
@@ -144,9 +164,9 @@ class Bot:
                          " в месяцах, прошедшее со дня покупки, через пробел"
             )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-        message.from_user.id)['user_state'] ==
-                             'select_buying_max_price_months')
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_buying_max_price_months')
+    )
     def select_buying_max_price_months(message):
         user_id = message.from_user.id
 
@@ -202,8 +222,9 @@ class Bot:
                 .format(desired_type, desired_model)
             )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-             message.from_user.id)['user_state'] == 'select_selling_type')
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_selling_type')
+    )
     def select_selling_type(message):
         message_text = message.text.lower()
         user_id = message.from_user.id
@@ -219,8 +240,9 @@ class Bot:
                 user_id, "Такой вид товаров не продается!"
             )
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-             message.from_user.id)['user_state'] == 'select_selling_model')
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_selling_model')
+    )
     def select_selling_model(message):
         message_text = message.text.lower()
         user_id = message.from_user.id
@@ -235,8 +257,9 @@ class Bot:
         )
 
 
-    @real_bot.message_handler(func=lambda message: db_operations.get_user(
-        message.from_user.id)['user_state'] == 'select_selling_price_months')
+    @real_bot.message_handler(
+        func=get_user_state_checker('select_selling_price_months')
+    )
     def select_selling_price_months(message):
         user_id = message.from_user.id
 
