@@ -1,0 +1,31 @@
+{
+  "background": {
+    "height": 2
+  },
+
+  "purchases_label": {
+    "text": "Your power : \n1\n mile per second",
+    "height": 7,
+    "bg": "red",
+    "fg": "yellow",
+    "font": "Helvetica"
+  },
+
+  "upgrade_suggestions": {
+    "text": "Buy new transports to move faster!",
+    "fg": "#eee",
+    "bg": "#333",
+    "height": 5,
+    "width": 41,
+    "font": "Helvetica"
+  },
+
+  "score_count_label": {
+    "text": "You have already overcame\n 0 miles",
+    "fg": "white",
+    "bg": "black",
+    "font": "Helvetica",
+    "height": 5,
+    "width": 27
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "background": {
+    "x": 0,
+    "y": 0,
+    "relwidth": 1,
+    "relheight": 1
+  },
+
+  "purchases_label": {
+    "x": 1300,
+    "y": 340
+  },
+  
+  "upgrade_suggestions": {
+    "x": 510,
+    "y": 240
+  },
+  
+  "score_count_label": {
+    "x": 590,
+    "y": 90
+  },
+
+  "click_button": {
+    "x": 630,
+    "y": 540
+  },
+
+  "transport_buttons": {
+    "helicopter": {
+      "x": 20,
+      "y": 120
+    },
+
+    "plane": {
+      "x": 20,
+      "y": 220
+    },
+
+    "simple_rocket": {
+      "x": 20,
+      "y": 330
+    },
+
+    "interplanetary_rocket": {
+      "x": 20,
+      "y": 440
+    },
+
+    "interstellar_rocket": {
+      "x": 20,
+      "y": 550
+    },
+
+    "intergalactic_rocket": {
+      "x": 20,
+      "y": 660
+    }
+  }
+}

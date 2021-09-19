@@ -1,35 +1,37 @@
 {
-  "upgrades": [
-    
-    {
+    "helicopter": {
       "transport": "Helicopter",
       "cost": 20,
       "miles-per-second": 1
     },
-    {
+
+    "plane": {
       "transport": "Plane",
       "cost": 200,
       "miles-per-second": 5
     },
-    {
+
+    "simple_rocket": {
       "transport": "Simple rocket",
       "cost": 10000,
       "miles-per-second": 10
     },
-    {
+
+    "interplanetary_rocket": {
       "transport": "Interplanetary rocket",
       "cost": 50000,
       "miles-per-second": 20
     },
-    {
+
+    "interstellar_rocket": {
       "transport": "Interstellar rocket",
       "cost": 500000,
       "miles-per-second": 30
     },
-    {
+
+    "intergalactic_rocket": {
       "transport": "Intergalactic rocket",
       "cost": 20000000,
       "miles-per-second": 50
     }
-  ]
 }
